@@ -12,7 +12,9 @@
   <script src="idb.js" type="text/javascript"></script>
   <script>
     let currentStatus = null;
-    let currentContext = null;
+    // let currentContext = null;
+    let _currentContext = null;
+    
     
     let formSubmitted = false;
     let loading = false;
@@ -21,17 +23,21 @@
     const iFRAME_HEIGHT = 500;
     var conversationId = '';
 
+    function getCurrentContext() {
+      return _currentContext;
+    }
     function setCurrentContext(value) {
-      currentContext = { ...value };
+      _currentContext = { ...value };
       return value
     }
     function setCurrentConversation(value) {
-      currentContext.conversation = {...value};
-      return currentContext.conversation;
+      _currentContext.conversation = {...value};
+      return {...value};
     }
     function getCurrentConversation() {
-      return currentContext.conversation;
+      return { ..._currentContext.conversation };
     }
+    
     function addDelayBeforeOpening(ttl = 500) {
       console.log("window", window)
       setTimeout(function () {
@@ -61,11 +67,7 @@
           )
           // Defaults are provided as follows.
           form.submission = {
-            data: {
-              // businessVertical: conversation?.businessVerticalTree,
-              // businessCountry: conversation?.businessCountryTree,
-              ...restidbdata
-            },
+            data: restidbdata,
           };
 
           // Prevent the submission from going to the form.io server.
@@ -103,17 +105,17 @@
 
     }
 
-    function conversationUpdateCallback(err, conversation) {
-      console.log("/v1/conversations/", {err, conversation: JSON.stringify(conversation)});
+    function conversationUpdateCallback(err, newConversation) {
+      console.log("/v1/conversations/", {err, newConversation: JSON.stringify(newConversation)});
       loading = false;
-      if(conversation) setCurrentConversation(conversation);
+      if(newConversation) setCurrentConversation(newConversation);
     }
 
     function initAndShowModal(conversationId) {
-      const conversation = getCurrentConversation();
-      if (!conversation) return;
-      console.log({conversation});
-      const formPublicUrlStr = conversation?.custom?.formPublicUrlStr || '';
+      const currentConversation = getCurrentConversation();
+      if (!currentConversation) return;
+      console.log({currentConversation});
+      const formPublicUrlStr = currentConversation?.custom?.formPublicUrlStr || '';
       const options = {
         height: MODAL_HEIGHT,
         width: MODAL_WIDTH,
@@ -168,7 +170,7 @@
         console.log("newContext or Kustomer object not available");
         return;
       }
-      const conversationId = newContext?.conversation?.id;
+      const newConversationId = newContext?.conversation?.id;
       const newConversation =
         newContext?.conversation && newContext?.conversation?.attributes;
       const endedReason = newConversation.endedReason;
@@ -180,20 +182,21 @@
       if (endedReason !== "user_ended") return;
       if (newStatus !== "done" || currentStatus !== "open") return;
 
-      updateStatusToOpenAndShowModal(conversationId);
+      updateStatusToOpenAndShowModal(newConversationId);
     }
 
     async function loadContext() {
       await idbInit();
       // Kustomer.initialize is required for widget visibility.
-      Kustomer.initialize(function (...allData) {
-        [currentContext] = allData;
+      Kustomer.initialize(function (allData) {
+        
+        setCurrentContext(allData);
         const conversation = getCurrentConversation();
         const status =
           conversation?.status ||
           conversation?.attributes?.status;
         if (currentStatus === null) currentStatus = status;
-        console.log({currentContext});
+        console.log({allData});
         // populateAttributes(conversation);
         console.log("conversation:", conversation)
         conversationId = conversation.id;
