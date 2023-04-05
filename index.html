@@ -13,6 +13,7 @@
   <script>
     let currentStatus = null;
     let currentContext = null;
+    
     let formSubmitted = false;
     let loading = false;
     const MODAL_WIDTH = 500; //Math.ceil(window.screen.availWidth * 0.6);
@@ -20,6 +21,17 @@
     const iFRAME_HEIGHT = 500;
     var conversationId = '';
 
+    function setCurrentContext(value) {
+      currentContext = { ...value };
+      return value
+    }
+    function setCurrentConversation(value) {
+      currentContext.conversation = {...value};
+      return currentContext.conversation;
+    }
+    function getCurrentConversation() {
+      return currentContext.conversation;
+    }
     function addDelayBeforeOpening(ttl = 500) {
       console.log("window", window)
       setTimeout(function () {
@@ -94,11 +106,11 @@
     function conversationUpdateCallback(err, conversation) {
       console.log("/v1/conversations/", {err, conversation: JSON.stringify(conversation)});
       loading = false;
-      if(conversation) currentContext.conversation = conversation;
+      if(conversation) setCurrentConversation(conversation);
     }
 
     function initAndShowModal(conversationId) {
-      const conversation = currentContext.conversation;
+      const conversation = getCurrentConversation();
       if (!conversation) return;
       console.log({conversation});
       const formPublicUrlStr = conversation?.custom?.formPublicUrlStr || '';
@@ -165,7 +177,7 @@
       const newStatus = newConversation.status;
       console.log({loading, newStatus, currentStatus});
       // do not show modal if closed by customer
-      if (endedReason === "customer_ended") return;
+      if (endedReason !== "user_ended") return;
       if (newStatus !== "done" || currentStatus !== "open") return;
 
       updateStatusToOpenAndShowModal(conversationId);
@@ -176,12 +188,10 @@
       // Kustomer.initialize is required for widget visibility.
       Kustomer.initialize(function (...allData) {
         [currentContext] = allData;
-        const conversation =
-          currentContext.conversation ||
-          currentContext.conversation?.attributes;
+        const conversation = getCurrentConversation();
         const status =
-          currentContext.conversation?.status ||
-          currentContext.conversation?.attributes?.status;
+          conversation?.status ||
+          conversation?.attributes?.status;
         if (currentStatus === null) currentStatus = status;
         console.log({currentContext});
         // populateAttributes(conversation);
