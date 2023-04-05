@@ -1,0 +1,84 @@
+<html>
+
+<head>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" />
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdn.form.io/formiojs/formio.full.min.css" />
+  <script src="https://cdn.form.io/formiojs/formio.full.min.js"></script>
+  <script src="https://cdn.kustomerapp.com/card-js/latest/kustomer-card.min.js"></script>
+  <script>
+    var currentContext;
+    function loadContext() {
+      // loadKustomerData();
+
+      // loadFormIo();
+
+      // document.querySelector(
+      //   "body > div.ReactModalPortal > div > div > div > div.modalSkeleton__header___tM41q > div > div.modalHeader__icon___5X9Wc > button"
+      // ).onclick = (data) => console.log("modal_close_onclikc", data);
+    }
+
+    function loadFormIo() {
+      Formio.createForm(
+        document.getElementById("formio"),
+        "https://nklojajvnfdiinu.form.io/kstest"
+      ).then(function (form) {
+        console.log({currentContext});
+        // Defaults are provided as follows.
+        form.submission = {
+          data: {
+            businessCountry: "TR", //contextJSON.conversation.attributes.custom.chatOriginCountryStr,
+            businessVertical: 1, //contextJSON.conversation.attributes.custom.domainTypeStr
+          },
+        };
+
+        // Prevent the submission from going to the form.io server.
+        form.nosubmit = true;
+
+        // Register for the submit event to get the completed submission.
+        form.on("submit", function (submission) {
+          console.log("Submission was made!", submission);
+        });
+
+        // Everytime the form changes, this will fire.
+        form.on("change", function (changed) {
+          console.log("Form was changed", changed);
+        });
+      });
+    }
+
+    function loadKustomerData() {
+      // Kustomer.initialize is required for card visibility in panel.
+      Kustomer.on("modal_initialize", (data) => {
+        console.log("modal_initialize", data);
+        currentContext = data;
+      });
+
+      Kustomer.on("modal_context_update", (data) => {
+        console.log("modal_context_update", data);
+      });
+
+      Kustomer.on("modal_show", (data) => {
+        console.log("modal_show", data);
+      });
+
+      Kustomer.on("modal_hide", (data) => {
+        console.log("modal_hide", data);
+      });
+      Kustomer.on("modal_close", (data) => {
+        console.log("modal_close", data);
+      });
+    }
+  </script>
+</head>
+
+<body onload="loadContext()">
+  <div class="page-content">
+    <div class="container-fluid">
+      <p> You have unsaved changes in the form, please fill all the required attributes and then mark conversation done
+      </p>
+    </div>
+  </div>
+</body>
+
+</html>

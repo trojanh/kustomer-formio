@@ -1,0 +1,314 @@
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <base href="/">
+  <title>App</title>
+  <script src="https://cdn.kustomerapp.com/card-js/latest/kustomer-card.js"></script>
+  <script>
+    let currentStatus = null;
+    let currentContext = null;
+    let loading = false;
+    const MODAL_WIDTH = Math.ceil(window.screen.availWidth * 0.6);
+    const MODAL_HEIGHT = Math.ceil(window.screen.availHeight * 0.8);
+
+    function addDelayBeforeOpening(ttl = 500) {
+      setTimeout(function () {
+        Kustomer.resize({
+          height: 50
+        });
+      }, ttl);
+    }
+
+    function conversationUpdateCallback(err, conversation) {
+      console.log('/v1/conversations/', { err, conversation });
+      loading = false;
+    }
+
+    function initAndShowModal() {
+      const conversation = currentContext.conversation;
+      if(!conversation) return;
+      console.log({conversation});
+      const formPublicUrlStr = conversation?.custom?.formPublicUrlStr || '';
+      const options = {
+        height: MODAL_HEIGHT,
+        width: MODAL_WIDTH,
+        id: 'myModal',
+        additionalData: currentContext,
+        title: 'Back Office Form Powered By Form.io',
+        url: 'https://kustomer-formio.tejassrivastav5.repl.co/modal.html',
+      };
+       // ensure the modal is not already open
+       Kustomer.modal.destroy(options.id);
+      try {
+        Kustomer.modal.init(options, (data) => {
+          console.log('modalInit', { data })
+          Kustomer.modal.show(options.id);
+        });
+        Kustomer.on('modal_close', (data) => {
+              console.log('modal_close', data);
+            });
+          Kustomer.on('modal_hide', (data) => {
+              console.log('modal_hide', data);
+            });
+      } catch (error) {
+        console.log({ error });
+      }
+    }
+
+    function updateStatusToOpenAndShowModal(newConversation) {
+      const { isBoFormValidatedBool } = newConversation?.custom || newConversation?.attributes?.custom;
+      console.log({ isBoFormValidatedBool, loading})
+
+      // do not open modal if the response for convo update has not completed
+      if(loading) return;
+      // do not open modal if isBoFormValidatedBool is true
+      if(isBoFormValidatedBool) return;
+
+      initAndShowModal();
+      loading = true;
+      currentStatus = "open";
+      Kustomer.request({
+        url: '/v1/conversations/' + newConversation.id,
+        method: 'put',
+        body: { "status": currentStatus }
+      }, conversationUpdateCallback);
+    }
+
+    function contextChangeHandler(newContext) {
+      if (!newContext || !Kustomer) {
+        console.log('newContext or Kustomer object not available');
+        return;
+      }
+      const newConversation = newContext?.conversation || newContext?.conversation?.attributes;
+      const endedReason = newConversation.endedReason
+      // populateAttributes(newConversation);
+
+      const newStatus = newConversation.status;
+      console.log({ loading, newStatus, currentStatus})
+      // do not show modal if closed by customer
+      if (endedReason === "customer_ended") return;
+      if (newStatus !== 'done' || currentStatus !== 'open') return;
+
+      updateStatusToOpenAndShowModal(newConversation);
+
+    }
+
+
+
+    function loadContext() {
+
+      // Kustomer.initialize is required for widget visibility.
+      Kustomer.initialize(function (...allData) {
+        [currentContext] = allData;
+        const conversation = currentContext.conversation || currentContext.conversation?.attributes;
+        const status = currentContext.conversation?.status || currentContext.conversation?.attributes?.status;
+        if (currentStatus === null) currentStatus = status;
+        console.log({ currentContext });
+        // populateAttributes(conversation);
+        addDelayBeforeOpening()
+
+        Kustomer.on('context', contextChangeHandler);
+      });
+    }
+
+
+    function onClick() {
+      Kustomer.openCustomerEvent(
+        "6396fe13b0a90a09d344324e",
+      );
+    }
+
+    function populateAttributes(conversation) {
+      const businessCountryTree = conversation.custom.businessCountryTree;
+      const verticalTree = conversation.custom.verticalTree;
+      const g10GmClientInboundReasonsTree = conversation.custom.g10GmClientInboundReasonsTree;
+      console.log({businessCountryTree, verticalTree, g10GmClientInboundReasonsTree});
+      document.getElementById('businessCountry').value = businessCountryTree;
+      changeBusinessCountry(businessCountryTree, 'businessDomain');
+      document.getElementById('businessDomain').value = verticalTree;
+
+      changeBusinessDomain(verticalTree, 'contactReasons');
+      document.getElementById('contactReasons').value = g10GmClientInboundReasonsTree;
+
+
+    }
+
+    const domainsByCountries = {
+      turkey: ["getir_10", "sn_org_getir_more", "getir_foods", "Getir Su (Kuzeyden)", "Getir Büyük"],
+      portugal: ["getir_10"],
+      usa: ["getir_10", "GMore"],
+      uk: ["getir_10"],
+      france: ["getir_10"],
+      spain: ["getir_10"],
+      germany: ["getir_10"],
+      italy: ["getir_10"],
+    }
+
+    const reasonsByDomain = {
+      getir_10: ["kayit_asamasi.yanlis_numara", "sn_org_missing_item", "sn_org_missing_wrong_product.sn_org_missing_product", "sn_org_product_issue.sn_org_damaged_product", "sn_org_missing_wrong_product.sn_org_wrong_product"],
+      "sn_org_getir_more": ["sn_org_missing_item", "sn_org_missing_wrong_product.sn_org_missing_product", "sn_org_product_issue.sn_org_damaged_product", "sn_org_missing_wrong_product.sn_org_wrong_product"],
+      "Getir Su (Kuzeyden)": ["Damaged", "Late Delivery"],
+      "Getir Büyük": ["Outside ETA", "Undelivered"],
+      "getir_foods": ["GY Müşteri İnbound Sebepleri", "GY Müşteri İnbound Sebepleri", "GY Müşteri İnbound Sebepleri"],
+    }
+
+
+    // const domainsByCountries = {
+    //   Turkey: ["Getir10", "Getir More", "Getir Yemek", "Getir Su (Kuzeyden)", "Getir Büyük"],
+    //   Portugal: ["Getir10"],
+    //   USA: ["Getir10", "GMore"],
+    //   UK: ["Getir10"],
+    //   France: ["Getir10"],
+    //   Spain: ["Getir10"],
+    //   Germany: ["Getir10"],
+    //   Italy: ["Getir10"],
+    // }
+
+    // const reasonsByDomain = {
+    //   Getir10: ["Promotion", "Expired", "Rotten", "Damaged"],
+    //   "Getir More": ["Missing", "Order Cancel", "Order Return"],
+    //   "Getir Su (Kuzeyden)": ["Damaged", "Late Delivery"],
+    //   "Getir Büyük": ["Outside ETA", "Undelivered"],
+    //   "Getir Yemek": ["Rotten", "Damaged", "Info", "Late Delivery"],
+    // }
+
+    const selectOptionsBuilder = (label, value, selected = false) => {
+      const updatedValue = typeof (value) !== 'string' ? label : value;
+      const selectedFlag = selected ? 'selected' : '';
+      return (`<option ${selectedFlag} value=${updatedValue} >${label}</option>`)
+    };
+
+    const initialOption = selectOptionsBuilder('Select ...', '', true);
+
+    const emptyOption = selectOptionsBuilder('');
+
+
+    function changeBusinessCountry(selectedCountry, selectorId) {
+      if (selectedCountry.length == 0) document.getElementById(selectorId).innerHTML = emptyOption;
+      else {
+        var domainOptions = initialOption;
+        for (domain in domainsByCountries[selectedCountry]) {
+          domainOptions += selectOptionsBuilder(domainsByCountries[selectedCountry][domain]);
+        }
+        document.getElementById(selectorId).innerHTML = domainOptions;
+      }
+    }
+
+    function changeBusinessDomain(selectedDomain, selectorId) {
+      if (selectedDomain.length == 0) document.getElementById(selectorId).innerHTML = emptyOption;
+      else {
+        Kustomer.resize({
+          height: 200
+        });
+        let reasonOptions = initialOption;
+        for (reason in reasonsByDomain[selectedDomain]) {
+          reasonOptions += selectOptionsBuilder(reasonsByDomain[selectedDomain][reason]);
+        }
+        document.getElementById(selectorId).innerHTML = reasonOptions;
+      }
+    }
+
+    function changeReason(selectedReason) {
+      console.log({
+        selectedReason
+      })
+    }
+
+    function submitForm(values) {
+
+      const businessCountry = document.getElementById('businessCountry').value;
+      const businessDomain = document.getElementById('businessDomain').value;
+      const contactReasons = document.getElementById('contactReasons').value;
+      console.log({
+        businessCountry,
+        businessDomain,
+        contactReasons,
+        currentContext
+      });
+      if (!currentContext) return;
+      Kustomer.request({
+        url: '/v1/conversations/' + currentContext.conversation.id,
+        method: 'put',
+        body: {
+          "custom": {
+            "businessCountryTree": businessCountry,
+            "verticalTree": businessDomain,
+            "g10GmClientInboundReasonsTree": contactReasons,
+            "isBoFormValidatedBool": true
+          }
+        }
+      }, function (err, conversation) {
+        // currentContext.conversation = conversation;
+        console.log('/v1/conversation/', { conversation, err });
+
+        if (err || !conversations) {
+          console.log(err);
+          return;
+        }
+      });
+    }
+
+    function resetForm() {
+      document.getElementById('businessCountry').value = "";
+      document.getElementById('businessDomain').value = "";
+      document.getElementById('contactReasons').value = "";
+
+      if (!currentContext) return;
+      Kustomer.request({
+        url: '/v1/conversations/' + currentContext.conversation.id,
+        method: 'put',
+        body: {
+          "custom": {
+            "businessCountryTree": null,
+            "verticalTree": null,
+            "g10GmClientInboundReasonsTree": null,
+            "isBoFormValidatedBool": null
+          }
+        }
+      }, function (err, conversation) {
+        // currentContext.conversation = conversation;
+        console.log('/v1/conversation/', { conversation, err });
+        document.getElementById("orderIdStr").value = conversation.attributes.custom.orderIdStr;
+
+        if (err || !conversations) {
+          console.log(err);
+          return;
+        }
+      });
+    }
+
+  </script>
+</head>
+
+<body onload="loadContext()">
+  <div class="container">
+    <button onclick="initAndShowModal()" class="fullButton">Open BO Form</button>
+  </div>
+    </div>
+  <style>
+    .fullButton {
+      margin-bottom: 10px;
+      box-sizing: border-box;
+      background: #0d6efd;
+      color: #fff;
+      border-radius: 0.25rem;
+      font-size: 1rem;
+      font-weight: 400;
+      border: 1px solid #0d6efd;
+      transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out,
+        box-shadow 0.15s ease-in-out;
+      text-align: center;
+      padding: 0.375rem 0.75rem;
+      width: 100%;
+    }
+
+    .container {
+      max-width: 400px;
+      margin: 10px auto;
+      padding: 0.5rem 1rem;
+    }
+  </style>
+</body>
+
+</html>
